@@ -13,6 +13,7 @@ import (
 	"sigs.k8s.io/cluster-api-provider-gcp/cloud"
 	"sigs.k8s.io/cluster-api-provider-gcp/cloud/scope"
 	"sigs.k8s.io/cluster-api-provider-gcp/exp/api/v1beta1"
+	infrav1exp "sigs.k8s.io/cluster-api-provider-gcp/exp/api/v1beta1"
 	"sigs.k8s.io/cluster-api-provider-gcp/util/processors"
 	clusterv1exp "sigs.k8s.io/cluster-api/exp/api/v1beta1"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -21,6 +22,7 @@ import (
 var _ = Describe("GCPManagedMachinePool Scope", func() {
 	var TestMachinePoolScope *scope.MachinePoolScope
 	var getter cloud.ClusterGetter
+	var mpscopeparams scope.MachinePoolScopeParams
 	var t *testing.T
 
 	BeforeEach(func() {
@@ -35,7 +37,7 @@ var _ = Describe("GCPManagedMachinePool Scope", func() {
 		testClient := fake.NewClientBuilder().WithScheme(schema).Build()
 
 		// Create the machinepool scope
-		params := scope.MachinePoolScopeParams{
+		mpscopeparams = scope.MachinePoolScopeParams{
 			Client:        testClient,
 			ClusterGetter: getter,
 			MachinePool: &clusterv1exp.MachinePool{
@@ -47,7 +49,7 @@ var _ = Describe("GCPManagedMachinePool Scope", func() {
 				Spec:       v1beta1.GCPMachinePoolSpec{},
 			},
 		}
-		TestMachinePoolScope, _ = scope.NewMachinePoolScope(params)
+		TestMachinePoolScope, _ = scope.NewMachinePoolScope(mpscopeparams)
 
 		// Make sure the machinepool scope is created correctly.
 		assert.Nil(t, err)
@@ -70,19 +72,55 @@ var _ = Describe("GCPManagedMachinePool Scope", func() {
 		})
 	})
 
-	Describe("ShieldedInstanceConfig", func() {
-		Context("If no config is passed in GCP Machinepool Spec", func() {
-			It("should have Integrity Monitoring set to true", func() {
+	Describe("GCPMachinePool Spec has no ShieldedInstanceConfig passed", func() {
+		It("should have Integrity Monitoring set to true", func() {
+			shieldedVMConfig := TestMachinePoolScope.GetShieldedInstanceConfigSpec()
+			Expect(shieldedVMConfig.EnableIntegrityMonitoring).To(BeTrue())
+		})
+		It("should have Secure Boot set to false", func() {
+			shieldedVMConfig := TestMachinePoolScope.GetShieldedInstanceConfigSpec()
+			Expect(shieldedVMConfig.EnableSecureBoot).To(BeFalse())
+		})
+		It("should have vTPM set to true", func() {
+			shieldedVMConfig := TestMachinePoolScope.GetShieldedInstanceConfigSpec()
+			Expect(shieldedVMConfig.EnableVtpm).To(BeTrue())
+		})
+	})
+
+	Describe("GCPMachinePool Spec has ShieldedInstanceConfig passed", func() {
+		Context("Secure Boot is enabled in gcpmacninepool.spec", func() {
+			It("should have secure boot set to true", func() {
+				mpscopeparams.GCPMachinePool.Spec = v1beta1.GCPMachinePoolSpec{
+					ShieldedInstanceConfig: &infrav1exp.GCPShieldedInstanceConfig{
+						SecureBoot: infrav1exp.SecureBootPolicyEnabled,
+					},
+				}
 				shieldedVMConfig := TestMachinePoolScope.GetShieldedInstanceConfigSpec()
 				Expect(shieldedVMConfig.EnableIntegrityMonitoring).To(BeTrue())
 			})
-			It("should have Secure Boot set to false", func() {
+		})
+
+		Context("vTPM is disabled in gcpmacninepool.spec", func() {
+			It("should have secure boot set to false", func() {
+				mpscopeparams.GCPMachinePool.Spec = v1beta1.GCPMachinePoolSpec{
+					ShieldedInstanceConfig: &infrav1exp.GCPShieldedInstanceConfig{
+						VirtualizedTrustedPlatformModule: infrav1exp.VirtualizedTrustedPlatformModulePolicyDisabled,
+					},
+				}
 				shieldedVMConfig := TestMachinePoolScope.GetShieldedInstanceConfigSpec()
-				Expect(shieldedVMConfig.EnableSecureBoot).To(BeFalse())
+				Expect(shieldedVMConfig.EnableVtpm).To(BeFalse())
 			})
-			It("should have vTPM set to true", func() {
+		})
+
+		Context("Integrity Monitoring is disabled in gcpmacninepool.spec", func() {
+			It("should have Integrity Monitoring set to false", func() {
+				mpscopeparams.GCPMachinePool.Spec = v1beta1.GCPMachinePoolSpec{
+					ShieldedInstanceConfig: &infrav1exp.GCPShieldedInstanceConfig{
+						IntegrityMonitoring: infrav1exp.IntegrityMonitoringPolicyDisabled,
+					},
+				}
 				shieldedVMConfig := TestMachinePoolScope.GetShieldedInstanceConfigSpec()
-				Expect(shieldedVMConfig.EnableVtpm).To(BeTrue())
+				Expect(shieldedVMConfig.EnableIntegrityMonitoring).To(BeFalse())
 			})
 		})
 	})
