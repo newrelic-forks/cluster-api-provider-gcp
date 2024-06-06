@@ -21,8 +21,9 @@ limitations under the License.
 package v1beta1
 
 import (
+	v1 "google.golang.org/api/compute/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	apiv1beta1 "sigs.k8s.io/cluster-api-provider-gcp/api/v1beta1"
@@ -315,9 +316,14 @@ func (in *GCPMachinePoolSpec) DeepCopyInto(out *GCPMachinePoolSpec) {
 		**out = **in
 	}
 	in.Strategy.DeepCopyInto(&out.Strategy)
+	if in.ShieldedInstanceConfig != nil {
+		in, out := &in.ShieldedInstanceConfig, &out.ShieldedInstanceConfig
+		*out = new(v1.ShieldedInstanceConfig)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.NodeDrainTimeout != nil {
 		in, out := &in.NodeDrainTimeout, &out.NodeDrainTimeout
-		*out = new(v1.Duration)
+		*out = new(metav1.Duration)
 		**out = **in
 	}
 }

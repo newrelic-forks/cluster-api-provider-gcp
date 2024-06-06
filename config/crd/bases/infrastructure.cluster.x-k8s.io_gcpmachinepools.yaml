@@ -181,6 +181,22 @@ spec:
                       type: string
                     type: array
                 type: object
+              shieldedInstanceConfig:
+                description: ShieldedInstanceConfig to specify secure boot configuration.
+                properties:
+                  enableIntegrityMonitoring:
+                    description: 'EnableIntegrityMonitoring: Defines whether the instance
+                      has integrity monitoring enabled. Enabled by default.'
+                    type: boolean
+                  enableSecureBoot:
+                    description: 'EnableSecureBoot: Defines whether the instance has
+                      Secure Boot enabled. Disabled by default.'
+                    type: boolean
+                  enableVtpm:
+                    description: 'EnableVtpm: Defines whether the instance has the
+                      vTPM enabled. Enabled by default.'
+                    type: boolean
+                type: object
               strategy:
                 default:
                   rollingUpdate:

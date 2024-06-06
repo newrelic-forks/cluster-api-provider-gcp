@@ -22,6 +22,8 @@ import (
 	infrav1 "sigs.k8s.io/cluster-api-provider-gcp/api/v1beta1"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/errors"
+
+	"google.golang.org/api/compute/v1"
 )
 
 const (
@@ -174,6 +176,10 @@ type GCPMachinePoolSpec struct {
 	// +optional
 	// +kubebuilder:default={type: "RollingUpdate", rollingUpdate: {maxSurge: 1, maxUnavailable: 0, deletePolicy: Oldest}}
 	Strategy GCPMachinePoolDeploymentStrategy `json:"strategy,omitempty"`
+
+	// ShieldedInstanceConfig to specify secure boot configuration.
+	// +optional
+	ShieldedInstanceConfig *compute.ShieldedInstanceConfig `json:"shieldedInstanceConfig,omitempty"`
 
 	// NodeDrainTimeout is the total amount of time that the controller will spend on draining a node.
 	// The default value is 0, meaning that the node can be drained without any time limitations.
