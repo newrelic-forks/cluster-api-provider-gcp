@@ -22,8 +22,6 @@ import (
 	infrav1 "sigs.k8s.io/cluster-api-provider-gcp/api/v1beta1"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/errors"
-
-	"google.golang.org/api/compute/v1"
 )
 
 const (
@@ -177,9 +175,9 @@ type GCPMachinePoolSpec struct {
 	// +kubebuilder:default={type: "RollingUpdate", rollingUpdate: {maxSurge: 1, maxUnavailable: 0, deletePolicy: Oldest}}
 	Strategy GCPMachinePoolDeploymentStrategy `json:"strategy,omitempty"`
 
-	// ShieldedInstanceConfig to specify secure boot configuration.
+	// ShieldedInstanceConfig is the Shielded VM configuration for this machine
 	// +optional
-	ShieldedInstanceConfig *compute.ShieldedInstanceConfig `json:"shieldedInstanceConfig,omitempty"`
+	ShieldedInstanceConfig *GCPShieldedInstanceConfig `json:"shieldedInstanceConfig,omitempty"`
 
 	// NodeDrainTimeout is the total amount of time that the controller will spend on draining a node.
 	// The default value is 0, meaning that the node can be drained without any time limitations.
@@ -190,6 +188,63 @@ type GCPMachinePoolSpec struct {
 	// Zone is the GCP zone location ex us-central1-a
 	Zone string `json:"zone"`
 }
+
+// SecureBootPolicy represents the secure boot configuration for the GCP machine.
+type SecureBootPolicy string
+
+const (
+	// SecureBootPolicyEnabled enables the secure boot configuration for the GCP machine.
+	SecureBootPolicyEnabled SecureBootPolicy = "Enabled"
+	// SecureBootPolicyDisabled disables the secure boot configuration for the GCP machine.
+	SecureBootPolicyDisabled SecureBootPolicy = "Disabled"
+)
+
+// VirtualizedTrustedPlatformModulePolicy represents the virtualized trusted platform module configuration for the GCP machine.
+type VirtualizedTrustedPlatformModulePolicy string
+
+const (
+	// VirtualizedTrustedPlatformModulePolicyEnabled enables the virtualized trusted platform module configuration for the GCP machine.
+	VirtualizedTrustedPlatformModulePolicyEnabled VirtualizedTrustedPlatformModulePolicy = "Enabled"
+	// VirtualizedTrustedPlatformModulePolicyDisabled disables the virtualized trusted platform module configuration for the GCP machine.
+	VirtualizedTrustedPlatformModulePolicyDisabled VirtualizedTrustedPlatformModulePolicy = "Disabled"
+)
+
+// IntegrityMonitoringPolicy represents the integrity monitoring configuration for the GCP machine.
+type IntegrityMonitoringPolicy string
+
+const (
+	// IntegrityMonitoringPolicyEnabled enables integrity monitoring for the GCP machine.
+	IntegrityMonitoringPolicyEnabled IntegrityMonitoringPolicy = "Enabled"
+	// IntegrityMonitoringPolicyDisabled disables integrity monitoring for the GCP machine.
+	IntegrityMonitoringPolicyDisabled IntegrityMonitoringPolicy = "Disabled"
+)
+
+// GCPShieldedInstanceConfig describes the shielded VM configuration of the instance on GCP.
+// Shielded VM configuration allow users to enable and disable Secure Boot, vTPM, and Integrity Monitoring.
+type GCPShieldedInstanceConfig struct {
+	// SecureBoot Defines whether the instance should have secure boot enabled.
+	// Secure Boot verify the digital signature of all boot components, and halting the boot process if signature verification fails.
+	// If omitted, the platform chooses a default, which is subject to change over time, currently that default is Disabled.
+	// +kubebuilder:validation:Enum=Enabled;Disabled
+	//+optional
+	SecureBoot SecureBootPolicy `json:"secureBoot,omitempty"`
+
+	// VirtualizedTrustedPlatformModule enable virtualized trusted platform module measurements to create a known good boot integrity policy baseline.
+	// The integrity policy baseline is used for comparison with measurements from subsequent VM boots to determine if anything has changed.
+	// If omitted, the platform chooses a default, which is subject to change over time, currently that default is Enabled.
+	// +kubebuilder:validation:Enum=Enabled;Disabled
+	// +optional
+	VirtualizedTrustedPlatformModule VirtualizedTrustedPlatformModulePolicy `json:"virtualizedTrustedPlatformModule,omitempty"`
+
+	// IntegrityMonitoring determines whether the instance should have integrity monitoring that verify the runtime boot integrity.
+	// Compares the most recent boot measurements to the integrity policy baseline and return
+	// a pair of pass/fail results depending on whether they match or not.
+	// If omitted, the platform chooses a default, which is subject to change over time, currently that default is Enabled.
+	// +kubebuilder:validation:Enum=Enabled;Disabled
+	// +optional
+	IntegrityMonitoring IntegrityMonitoringPolicy `json:"integrityMonitoring,omitempty"`
+}
+
 
 // GCPMachinePoolDeploymentStrategyType is the type of deployment strategy employed to rollout a new version of the GCPMachinePool.
 type GCPMachinePoolDeploymentStrategyType string
