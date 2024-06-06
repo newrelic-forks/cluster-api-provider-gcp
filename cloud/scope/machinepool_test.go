@@ -69,4 +69,21 @@ var _ = Describe("GCPManagedMachinePool Scope", func() {
 			})
 		})
 	})
+
+	Describe("ShieldedInstanceConfig", func() {
+		Context("If no config is passed in GCP Machinepool Spec", func() {
+			It("should have Integrity Monitoring set to true", func() {
+				shieldedVMConfig := TestMachinePoolScope.GetShieldedInstanceConfigSpec()
+				Expect(shieldedVMConfig.EnableIntegrityMonitoring).To(BeTrue())
+			})
+			It("should have Secure Boot set to false", func() {
+				shieldedVMConfig := TestMachinePoolScope.GetShieldedInstanceConfigSpec()
+				Expect(shieldedVMConfig.EnableSecureBoot).To(BeFalse())
+			})
+			It("should have vTPM set to true", func() {
+				shieldedVMConfig := TestMachinePoolScope.GetShieldedInstanceConfigSpec()
+				Expect(shieldedVMConfig.EnableVtpm).To(BeTrue())
+			})
+		})
+	})
 })
