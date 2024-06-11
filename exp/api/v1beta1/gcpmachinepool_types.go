@@ -245,7 +245,6 @@ type GCPShieldedInstanceConfig struct {
 	IntegrityMonitoring IntegrityMonitoringPolicy `json:"integrityMonitoring,omitempty"`
 }
 
-
 // GCPMachinePoolDeploymentStrategyType is the type of deployment strategy employed to rollout a new version of the GCPMachinePool.
 type GCPMachinePoolDeploymentStrategyType string
 

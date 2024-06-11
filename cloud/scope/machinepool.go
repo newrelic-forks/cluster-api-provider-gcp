@@ -414,7 +414,7 @@ func (m *MachinePoolScope) InstanceGroupTemplateBuilder(bootstrapData string) *c
 // As of now will only build the configuration for using
 // - Integrity Monitoring - enabled by default
 // - Secure Boot - disabled by default
-// - vTPM - enabled by default
+// - vTPM - enabled by default.
 func (m *MachinePoolScope) GetShieldedInstanceConfigSpec() *compute.ShieldedInstanceConfig {
 	shieldedInstanceConfig := &compute.ShieldedInstanceConfig{
 		EnableSecureBoot:          false,

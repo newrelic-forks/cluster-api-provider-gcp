@@ -12,7 +12,6 @@ import (
 	infrav1 "sigs.k8s.io/cluster-api-provider-gcp/api/v1beta1"
 	"sigs.k8s.io/cluster-api-provider-gcp/cloud"
 	"sigs.k8s.io/cluster-api-provider-gcp/cloud/scope"
-	"sigs.k8s.io/cluster-api-provider-gcp/exp/api/v1beta1"
 	infrav1exp "sigs.k8s.io/cluster-api-provider-gcp/exp/api/v1beta1"
 	"sigs.k8s.io/cluster-api-provider-gcp/util/processors"
 	clusterv1exp "sigs.k8s.io/cluster-api/exp/api/v1beta1"
@@ -27,7 +26,7 @@ var _ = Describe("GCPManagedMachinePool Scope", func() {
 
 	BeforeEach(func() {
 		// Register the MachinePool, GCPMachinePool and GCPMachinePoolList in a schema.
-		schema, err := infrav1.SchemeBuilder.Register(&clusterv1exp.MachinePool{}, &v1beta1.GCPMachinePool{}, &v1beta1.GCPMachinePoolList{}).Build()
+		schema, err := infrav1.SchemeBuilder.Register(&clusterv1exp.MachinePool{}, &infrav1exp.GCPMachinePool{}, &infrav1exp.GCPMachinePoolList{}).Build()
 		// Make sure no errors were triggered.
 		assert.Nil(t, err)
 
@@ -44,9 +43,9 @@ var _ = Describe("GCPManagedMachinePool Scope", func() {
 				ObjectMeta: metav1.ObjectMeta{},
 				Spec:       clusterv1exp.MachinePoolSpec{},
 			},
-			GCPMachinePool: &v1beta1.GCPMachinePool{
+			GCPMachinePool: &infrav1exp.GCPMachinePool{
 				ObjectMeta: metav1.ObjectMeta{},
-				Spec:       v1beta1.GCPMachinePoolSpec{},
+				Spec:       infrav1exp.GCPMachinePoolSpec{},
 			},
 		}
 		TestMachinePoolScope, _ = scope.NewMachinePoolScope(mpscopeparams)
@@ -90,7 +89,7 @@ var _ = Describe("GCPManagedMachinePool Scope", func() {
 	Describe("GCPMachinePool Spec has ShieldedInstanceConfig passed", func() {
 		Context("Secure Boot is enabled in gcpmacninepool.spec", func() {
 			It("should have secure boot set to true", func() {
-				mpscopeparams.GCPMachinePool.Spec = v1beta1.GCPMachinePoolSpec{
+				mpscopeparams.GCPMachinePool.Spec = infrav1exp.GCPMachinePoolSpec{
 					ShieldedInstanceConfig: &infrav1exp.GCPShieldedInstanceConfig{
 						SecureBoot: infrav1exp.SecureBootPolicyEnabled,
 					},
@@ -102,7 +101,7 @@ var _ = Describe("GCPManagedMachinePool Scope", func() {
 
 		Context("vTPM is disabled in gcpmacninepool.spec", func() {
 			It("should have secure boot set to false", func() {
-				mpscopeparams.GCPMachinePool.Spec = v1beta1.GCPMachinePoolSpec{
+				mpscopeparams.GCPMachinePool.Spec = infrav1exp.GCPMachinePoolSpec{
 					ShieldedInstanceConfig: &infrav1exp.GCPShieldedInstanceConfig{
 						VirtualizedTrustedPlatformModule: infrav1exp.VirtualizedTrustedPlatformModulePolicyDisabled,
 					},
@@ -114,7 +113,7 @@ var _ = Describe("GCPManagedMachinePool Scope", func() {
 
 		Context("Integrity Monitoring is disabled in gcpmacninepool.spec", func() {
 			It("should have Integrity Monitoring set to false", func() {
-				mpscopeparams.GCPMachinePool.Spec = v1beta1.GCPMachinePoolSpec{
+				mpscopeparams.GCPMachinePool.Spec = infrav1exp.GCPMachinePoolSpec{
 					ShieldedInstanceConfig: &infrav1exp.GCPShieldedInstanceConfig{
 						IntegrityMonitoring: infrav1exp.IntegrityMonitoringPolicyDisabled,
 					},
