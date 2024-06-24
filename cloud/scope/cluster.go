@@ -163,9 +163,8 @@ func (s *ClusterScope) ResourceManagerTags() infrav1.ResourceManagerTags {
 // ControlPlaneEndpoint returns the cluster control-plane endpoint.
 func (s *ClusterScope) ControlPlaneEndpoint() clusterv1.APIEndpoint {
 	endpoint := s.GCPCluster.Spec.ControlPlaneEndpoint
-	endpoint.Port = 443
 	if c := s.Cluster.Spec.ClusterNetwork; c != nil {
-		endpoint.Port = ptr.Deref(c.APIServerPort, 443)
+		endpoint.Port = ptr.Deref(c.APIServerPort, endpoint.Port)
 	}
 	return endpoint
 }
