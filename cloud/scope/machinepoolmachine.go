@@ -22,6 +22,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"reflect"
 	"strings"
 	"time"
 
@@ -302,8 +303,11 @@ func (m *MachinePoolMachineScope) ProviderID() string {
 }
 
 // HasLatestModelApplied checks if the latest model is applied to the GCPMachinePoolMachine.
-func (m *MachinePoolMachineScope) HasLatestModelApplied(_ context.Context, instance *compute.Disk) (bool, error) {
+func (m *MachinePoolMachineScope) HasLatestModelApplied(ctx context.Context, instance *compute.Disk, labels map[string]string) (bool, error) {
+	log := log.FromContext(ctx)
+
 	image := ""
+	instanceLabelsToCompare := labels
 
 	if m.GCPMachinePool.Spec.Image == nil {
 		version := ""
@@ -318,15 +322,24 @@ func (m *MachinePoolMachineScope) HasLatestModelApplied(_ context.Context, insta
 	// Get the image from the disk URL path to compare with the latest image name
 	diskImage, err := url.Parse(instance.SourceImage)
 	if err != nil {
+		log.Error(err, "Error Parsing the Instance.SourceImage from the disk attached.")
 		return false, err
 	}
 	instanceImage := path.Base(diskImage.Path)
 
 	// Check if the image is the latest
-	if image == instanceImage {
+	// Check if the Labels applied to the instance are the latest as in the Instance Template.
+	// Remove the two keys of `capg-role` and `capg-cluster-<CLUSTER-NAME>` as they are added by default by CAPG
+	// and would be easier to compare the additional labels.
+	// ref: https://github.com/newrelic-forks/cluster-api-provider-gcp/blob/ef2e7f1e64ebeeb5389c446fe4cf89026fcb8a8a/cloud/services/compute/instances/reconcile_test.go#L244-L245
+	delete(instanceLabelsToCompare, "capg-role")
+	delete(instanceLabelsToCompare, fmt.Sprintf("capg-cluster-%s", m.GCPMachinePool.ObjectMeta.Labels["cluster.x-k8s.io/cluster-name"]))
+	if image == instanceImage && reflect.DeepEqual(instanceLabelsToCompare, m.GCPMachinePool.Spec.AdditionalLabels) {
+		log.Info("Instance Image and AdditionalLabels are same as the ones specified in GCPMachinePool Spec, setting LatestModelApplied to true", "GCPMachinePoolMachine", m.GCPMachinePoolMachine)
 		return true, nil
 	}
 
+	log.Info("One of either Instance Image and AdditionalLabels are not the same as the ones specified in GCPMachinePool Spec, setting LatestModelApplied to false", "GCPMachinePoolMachine", m.GCPMachinePoolMachine)
 	return false, nil
 }
 
