@@ -22,7 +22,6 @@ import (
 	"net/url"
 	"os"
 	"path"
-	"reflect"
 	"strings"
 	"time"
 
@@ -307,7 +306,6 @@ func (m *MachinePoolMachineScope) HasLatestModelApplied(ctx context.Context, ins
 	log := log.FromContext(ctx)
 
 	image := ""
-	instanceLabelsToCompare := labels
 
 	if m.GCPMachinePool.Spec.Image == nil {
 		version := ""
@@ -327,20 +325,39 @@ func (m *MachinePoolMachineScope) HasLatestModelApplied(ctx context.Context, ins
 	}
 	instanceImage := path.Base(diskImage.Path)
 
-	// Check if the image is the latest
-	// Check if the Labels applied to the instance are the latest as in the Instance Template.
-	// Remove the two keys of `capg-role` and `capg-cluster-<CLUSTER-NAME>` as they are added by default by CAPG
-	// and would be easier to compare the additional labels.
-	// ref: https://github.com/newrelic-forks/cluster-api-provider-gcp/blob/ef2e7f1e64ebeeb5389c446fe4cf89026fcb8a8a/cloud/services/compute/instances/reconcile_test.go#L244-L245
-	delete(instanceLabelsToCompare, "capg-role")
-	delete(instanceLabelsToCompare, fmt.Sprintf("capg-cluster-%s", m.GCPMachinePool.ObjectMeta.Labels["cluster.x-k8s.io/cluster-name"]))
-	if image == instanceImage && reflect.DeepEqual(instanceLabelsToCompare, m.GCPMachinePool.Spec.AdditionalLabels) {
+	// Check if the image is the latest and additionalLabels
+	hasAdditionalLabelsDiff, err := m.hasAdditionalLabelsDiff(ctx, labels)
+	if err != nil {
+		log.Error(err, "Error checking the AdditonalLabels")
+		return false, err
+	}
+	if image == instanceImage && hasAdditionalLabelsDiff {
 		log.Info("Instance Image and AdditionalLabels are same as the ones specified in GCPMachinePool Spec, setting LatestModelApplied to true", "GCPMachinePoolMachine", m.GCPMachinePoolMachine)
 		return true, nil
 	}
 
 	log.Info("One of either Instance Image and AdditionalLabels are not the same as the ones specified in GCPMachinePool Spec, setting LatestModelApplied to false", "GCPMachinePoolMachine", m.GCPMachinePoolMachine)
 	return false, nil
+}
+
+// hasAdditionalLabelsDiff Checks if the Labels applied to the instance are the latest as in the Instance Template.
+// two keys of `capg-role` and `capg-cluster-<CLUSTER-NAME>` as they are added by default by CAPG
+// ref: https://github.com/newrelic-forks/cluster-api-provider-gcp/blob/ef2e7f1e64ebeeb5389c446fe4cf89026fcb8a8a/cloud/services/compute/instances/reconcile_test.go#L244-L24
+func (m *MachinePoolMachineScope) hasAdditionalLabelsDiff(ctx context.Context, labels map[string]string) (bool, error) {
+	diff := make(map[string]bool)
+	log := log.FromContext(ctx)
+	for _, k := range labels {
+		if _, ok := m.GCPMachinePool.Spec.AdditionalLabels[k]; !ok {
+			diff[k] = true
+		}
+	}
+	_, hasCapgRoleKey := diff["capg-role"]
+	_, hasCapgClusterKey := diff[fmt.Sprintf("capg-cluster-%s", m.GCPMachinePool.ObjectMeta.Labels["cluster.x-k8s.io/cluster-name"])]
+	if hasCapgRoleKey && hasCapgClusterKey && len(diff) == 2 {
+		log.Info("There's no diff in AdditionalLabels which are present.", "GCPMachinePoolMachine", m.GCPMachinePoolMachine)
+		return false, nil
+	}
+	return true, nil
 }
 
 // CordonAndDrainNode cordon and drain the node for the GCPMachinePoolMachine.
