@@ -326,11 +326,7 @@ func (m *MachinePoolMachineScope) HasLatestModelApplied(ctx context.Context, ins
 	instanceImage := path.Base(diskImage.Path)
 
 	// Check if the image is the latest and additionalLabels
-	hasAdditionalLabelsDiff, err := m.doesNotHaveAdditionalLabelsDiff(ctx, labels)
-	if err != nil {
-		log.Error(err, "Error checking the AdditonalLabels")
-		return false, err
-	}
+	hasAdditionalLabelsDiff := m.doesNotHaveAdditionalLabelsDiff(ctx, labels)
 	if image == instanceImage && hasAdditionalLabelsDiff {
 		log.Info("Instance Image and AdditionalLabels are same as the ones specified in GCPMachinePool Spec, setting LatestModelApplied to true", "GCPMachinePoolMachine", m.GCPMachinePoolMachine)
 		return true, nil
@@ -346,7 +342,7 @@ func (m *MachinePoolMachineScope) HasLatestModelApplied(ctx context.Context, ins
 // - `capg-cluster-<CLUSTER-NAME>`
 // as they are added by default by CAPG and when we compare it with AdditionalLabels in GCPMachinePool.Spec with the instance present.
 // ref: https://github.com/newrelic-forks/cluster-api-provider-gcp/blob/ef2e7f1e64ebeeb5389c446fe4cf89026fcb8a8a/cloud/services/compute/instances/reconcile_test.go#L244-L24
-func (m *MachinePoolMachineScope) doesNotHaveAdditionalLabelsDiff(ctx context.Context, labels map[string]string) (bool, error) {
+func (m *MachinePoolMachineScope) doesNotHaveAdditionalLabelsDiff(ctx context.Context, labels map[string]string) bool {
 	diff := make(map[string]bool)
 	log := log.FromContext(ctx)
 	for _, k := range labels {
@@ -358,9 +354,9 @@ func (m *MachinePoolMachineScope) doesNotHaveAdditionalLabelsDiff(ctx context.Co
 	_, hasCapgClusterKey := diff[fmt.Sprintf("capg-cluster-%s", m.GCPMachinePool.ObjectMeta.Labels["cluster.x-k8s.io/cluster-name"])]
 	if hasCapgRoleKey && hasCapgClusterKey && len(diff) == 2 {
 		log.Info("There's no diff in AdditionalLabels which are present.", "GCPMachinePoolMachine", m.GCPMachinePoolMachine)
-		return false, nil
+		return false
 	}
-	return true, nil
+	return true
 }
 
 // CordonAndDrainNode cordon and drain the node for the GCPMachinePoolMachine.
