@@ -1,7 +1,6 @@
 package scope_test
 
 import (
-	"fmt"
 	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -58,7 +57,7 @@ var _ = Describe("GCPManagedMachinePool Scope", func() {
 		Context("instance types", func() {
 			It("should match all", func() {
 				for k := range processors.Processors {
-					TestMachinePoolScope.GCPMachinePool.Spec.InstanceType = fmt.Sprintf("%sstandard-8", k)
+					TestMachinePoolScope.GCPMachinePool.Spec.InstanceType = k + "standard-8"
 					Expect(TestMachinePoolScope.MinCPUPlatform()).To(Equal(processors.Processors[k]))
 				}
 			})

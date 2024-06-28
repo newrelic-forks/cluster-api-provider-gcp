@@ -305,7 +305,7 @@ func (m *MachinePoolMachineScope) ProviderID() string {
 func (m *MachinePoolMachineScope) HasLatestModelApplied(ctx context.Context, instance *compute.Disk, labels map[string]string) (bool, error) {
 	log := log.FromContext(ctx)
 
-	image := ""
+	var image string
 
 	if m.GCPMachinePool.Spec.Image == nil {
 		version := ""
@@ -351,7 +351,7 @@ func (m *MachinePoolMachineScope) doesNotHaveAdditionalLabelsDiff(ctx context.Co
 		}
 	}
 	_, hasCapgRoleKey := diff["capg-role"]
-	_, hasCapgClusterKey := diff[fmt.Sprintf("capg-cluster-%s", m.GCPMachinePool.ObjectMeta.Labels["cluster.x-k8s.io/cluster-name"])]
+	_, hasCapgClusterKey := diff["capg-cluster-"+m.GCPMachinePool.ObjectMeta.Labels["cluster.x-k8s.io/cluster-name"]]
 	if hasCapgRoleKey && hasCapgClusterKey && len(diff) == 2 {
 		log.Info("There's no diff in AdditionalLabels which are present.", "GCPMachinePoolMachine", m.GCPMachinePoolMachine)
 		return false

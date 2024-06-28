@@ -257,6 +257,7 @@ func (s *Service) removeOldInstanceTemplate(ctx context.Context, instanceTemplat
 	// Prepare to identify instance templates to remove.
 	lastIndex := strings.LastIndex(instanceTemplateName, "-")
 	if lastIndex == -1 {
+		//nolint
 		log.Error(fmt.Errorf("invalid instance template name format"), "Invalid template name", "templateName", instanceTemplateName)
 		return fmt.Errorf("invalid instance template name format: %s", instanceTemplateName)
 	}
