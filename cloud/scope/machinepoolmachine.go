@@ -326,7 +326,7 @@ func (m *MachinePoolMachineScope) HasLatestModelApplied(ctx context.Context, ins
 	instanceImage := path.Base(diskImage.Path)
 
 	// Check if the image is the latest and additionalLabels
-	hasAdditionalLabelsDiff, err := m.hasAdditionalLabelsDiff(ctx, labels)
+	hasAdditionalLabelsDiff, err := m.doesNotHaveAdditionalLabelsDiff(ctx, labels)
 	if err != nil {
 		log.Error(err, "Error checking the AdditonalLabels")
 		return false, err
@@ -340,10 +340,13 @@ func (m *MachinePoolMachineScope) HasLatestModelApplied(ctx context.Context, ins
 	return false, nil
 }
 
-// hasAdditionalLabelsDiff Checks if the Labels applied to the instance are the latest as in the Instance Template.
-// two keys of `capg-role` and `capg-cluster-<CLUSTER-NAME>` as they are added by default by CAPG
+// doesNotHaveAdditionalLabelsDiff Checks if the Labels applied to the instance are the latest as in the Instance Template.
+// We would need to ignore the two labels
+// - `capg-role`
+// - `capg-cluster-<CLUSTER-NAME>`
+// as they are added by default by CAPG and when we compare it with AdditionalLabels in GCPMachinePool.Spec with the instance present.
 // ref: https://github.com/newrelic-forks/cluster-api-provider-gcp/blob/ef2e7f1e64ebeeb5389c446fe4cf89026fcb8a8a/cloud/services/compute/instances/reconcile_test.go#L244-L24
-func (m *MachinePoolMachineScope) hasAdditionalLabelsDiff(ctx context.Context, labels map[string]string) (bool, error) {
+func (m *MachinePoolMachineScope) doesNotHaveAdditionalLabelsDiff(ctx context.Context, labels map[string]string) (bool, error) {
 	diff := make(map[string]bool)
 	log := log.FromContext(ctx)
 	for _, k := range labels {
