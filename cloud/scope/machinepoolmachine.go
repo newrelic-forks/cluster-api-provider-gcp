@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"net/url"
 	"os"
-	"path"
 	"strings"
 	"time"
 
@@ -70,8 +69,15 @@ type (
 		MachinePool           *clusterv1exp.MachinePool
 		GCPMachinePool        *infrav1exp.GCPMachinePool
 		GCPMachinePoolMachine *infrav1exp.GCPMachinePoolMachine
+		MachinePoolScope      *MachinePoolScope
+		instance              *compute.Instance
 	}
 )
+
+// SetReady sets the GCPMachinePoolMachine Ready Status to true.
+func (m *MachinePoolMachineScope) SetMIGInstance(instance *compute.Instance) {
+	m.instance = instance
+}
 
 // PatchObject persists the machine pool configuration and status.
 func (m *MachinePoolMachineScope) PatchObject(ctx context.Context) error {
@@ -121,6 +127,17 @@ func NewMachinePoolMachineScope(params MachinePoolMachineScopeParams) (*MachineP
 		return nil, errors.New("gcp machine pool machine is required when creating a MachinePoolScope")
 	}
 
+	mpScope, err := NewMachinePoolScope(MachinePoolScopeParams{
+		Client:         params.Client,
+		MachinePool:    params.MachinePool,
+		GCPMachinePool: params.GCPMachinePool,
+		ClusterGetter:  params.ClusterGetter,
+	})
+
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to build machine pool scope")
+	}
+
 	helper, err := patch.NewHelper(params.GCPMachinePoolMachine, params.Client)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to init patch helper for %s %s/%s", params.GCPMachinePoolMachine.GroupVersionKind(), params.GCPMachinePoolMachine.Namespace, params.GCPMachinePoolMachine.Name)
@@ -139,11 +156,12 @@ func NewMachinePoolMachineScope(params MachinePoolMachineScopeParams) (*MachineP
 		GCPMachinePoolMachine:      params.GCPMachinePoolMachine,
 		PatchHelper:                helper,
 		CapiMachinePoolPatchHelper: capiMachinePoolPatchHelper,
+		MachinePoolScope:           mpScope,
 	}, nil
 }
 
 // UpdateNodeStatus updates the GCPMachinePoolMachine conditions and ready status. It will also update the node ref and the Kubernetes version.
-func (m *MachinePoolMachineScope) UpdateNodeStatus(ctx context.Context) (bool, error) {
+func (m *MachinePoolMachineScope) UpdateNodeStatus(ctx context.Context, disk *compute.Disk) (bool, error) {
 	var node *corev1.Node
 	nodeRef := m.GCPMachinePoolMachine.Status.NodeRef
 
@@ -184,6 +202,18 @@ func (m *MachinePoolMachineScope) UpdateNodeStatus(ctx context.Context) (bool, e
 		}
 
 		m.GCPMachinePoolMachine.Status.Version = node.Status.NodeInfo.KubeletVersion
+
+		if m.instance != nil {
+			m.GCPMachinePoolMachine.Status.InstanceName = m.instance.Name
+			m.SetStatusProvisioningState()
+
+			var hasLatestModel bool
+			hasLatestModel, err = m.HasLatestModelApplied(ctx, disk)
+			if err != nil {
+				return false, errors.Wrap(err, "failed to determine if the MIG instance has the latest model")
+			}
+			m.GCPMachinePoolMachine.Status.LatestModelApplied = hasLatestModel
+		}
 	}
 
 	return true, nil
@@ -301,8 +331,35 @@ func (m *MachinePoolMachineScope) ProviderID() string {
 	return fmt.Sprintf("gce://%s/%s/%s", m.Project(), m.GCPMachinePool.Spec.Zone, m.Name())
 }
 
+// SetStatusProvisioningState sets the provisioning state for the GCPMachinePoolMachine from the GCP instance status.
+func (m *MachinePoolMachineScope) SetStatusProvisioningState() {
+	// Ref - https://cloud.google.com/compute/docs/instances/instance-life-cycle
+	if m.instance != nil {
+		var state infrav1exp.ProvisioningState
+		switch m.instance.Status {
+		case "PROVISIONING":
+			state = infrav1exp.Provisioning
+		case "DEPROVISIONING":
+			state = infrav1exp.Deprovisioning
+		case "STAGING":
+			state = infrav1exp.Complete
+		case "RUNNING", "REPAIRING", "SUSPENDED", "SUSPENDING", "STOPPED":
+			state = infrav1exp.Succeeded
+		case "STOPPING", "TERMINATED":
+			if m.instance.LastStartTimestamp == "" {
+				state = infrav1exp.Failed
+			} else {
+				state = infrav1exp.Succeeded
+			}
+		default:
+			state = infrav1exp.Failed
+		}
+		m.GCPMachinePoolMachine.Status.ProvisioningState = state
+	}
+}
+
 // HasLatestModelApplied checks if the latest model is applied to the GCPMachinePoolMachine.
-func (m *MachinePoolMachineScope) HasLatestModelApplied(_ context.Context, instance *compute.Disk) (bool, error) {
+func (m *MachinePoolMachineScope) HasLatestModelApplied(ctx context.Context, disk *compute.Disk) (bool, error) {
 	image := ""
 
 	if m.GCPMachinePool.Spec.Image == nil {
@@ -312,22 +369,20 @@ func (m *MachinePoolMachineScope) HasLatestModelApplied(_ context.Context, insta
 		}
 		image = cloud.ClusterAPIImagePrefix + strings.ReplaceAll(semver.MajorMinor(version), ".", "-")
 	} else {
+		// Ex: projects/test-lemon-peel/global/images/cluster-api-ubuntu-2204-v1-25-16-1709613458
 		image = *m.GCPMachinePool.Spec.Image
 	}
 
 	// Get the image from the disk URL path to compare with the latest image name
-	diskImage, err := url.Parse(instance.SourceImage)
+	// Ex: https://www.googleapis.com/compute/v1/projects/test-lemon-peel/global/images/cluster-api-ubuntu-2204-v1-25-16-1709613458
+	diskImage, err := url.Parse(disk.SourceImage)
 	if err != nil {
 		return false, err
 	}
-	instanceImage := path.Base(diskImage.Path)
 
 	// Check if the image is the latest
-	if image == instanceImage {
-		return true, nil
-	}
-
-	return false, nil
+	log.FromContext(ctx).Info(fmt.Sprintf("Comparing machine pool %s spec image %s with instance disk image %s\n", m.MachinePool.Name, image, diskImage))
+	return strings.Contains(diskImage.Path, image), nil
 }
 
 // CordonAndDrainNode cordon and drain the node for the GCPMachinePoolMachine.

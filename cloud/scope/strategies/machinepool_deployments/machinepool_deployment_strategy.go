@@ -237,7 +237,7 @@ func getMachinesWithoutLatestModel(machinesByProviderID map[string]infrav1exp.GC
 func getDeletingMachines(machinesByProviderID map[string]infrav1exp.GCPMachinePoolMachine) []infrav1exp.GCPMachinePoolMachine {
 	var machines []infrav1exp.GCPMachinePoolMachine
 	for _, v := range machinesByProviderID {
-		if v.Status.ProvisioningState == infrav1exp.Deleting &&
+		if v.Status.ProvisioningState == infrav1exp.Deprovisioning &&
 			// Ensure that the machine has not already been marked for deletion
 			v.DeletionTimestamp.IsZero() {
 			machines = append(machines, v)

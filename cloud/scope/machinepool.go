@@ -730,3 +730,11 @@ func (m *MachinePoolScope) SetReplicas(replicas int32) {
 func (m *MachinePoolScope) ConditionSetter() conditions.Setter {
 	return m.GCPMachinePool
 }
+
+// GetInstanceImage picks an image from the machine configuration, or uses a default one.
+func (m *MachinePoolScope) GetInstanceImage() (*string, error) {
+	if m.GCPMachinePool.Spec.Image == nil {
+		return nil, fmt.Errorf("no image specified in machine pool spec %s\n", m.MachinePool.Name)
+	}
+	return m.GCPMachinePool.Spec.Image, nil
+}

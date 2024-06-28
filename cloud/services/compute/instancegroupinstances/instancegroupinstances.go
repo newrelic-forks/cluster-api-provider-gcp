@@ -65,17 +65,17 @@ func (s *Service) Reconcile(ctx context.Context) (ctrl.Result, error) {
 		return ctrl.Result{}, gcperrors.UnwrapGCPError(err)
 	}
 
-	// Fetch the instances disk.
+	// Set the instance in scope
+	s.scope.SetMIGInstance(instance)
+
+	// Fetch the instance disk.
 	disk, err := s.GetDisk(ctx, s.scope.Project(), s.scope.Zone(), s.scope.Name())
 	if err != nil {
 		return ctrl.Result{}, gcperrors.UnwrapGCPError(err)
 	}
 
-	// Update the GCPMachinePoolMachine status.
-	s.scope.GCPMachinePoolMachine.Status.InstanceName = instance.Name
-
 	// Update Node status with the instance information. If the node is not found, requeue.
-	if nodeFound, err := s.scope.UpdateNodeStatus(ctx); err != nil {
+	if nodeFound, err := s.scope.UpdateNodeStatus(ctx, disk); err != nil {
 		log.Error(err, "Failed to update Node status")
 		return ctrl.Result{}, err
 	} else if !nodeFound {
@@ -83,15 +83,7 @@ func (s *Service) Reconcile(ctx context.Context) (ctrl.Result, error) {
 		return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
 	}
 
-	// Update hasLatestModelApplied status.
-	latestModel, err := s.scope.HasLatestModelApplied(ctx, disk)
-	if err != nil {
-		log.Error(err, "Failed to check if the latest model is applied")
-		return ctrl.Result{}, err
-	}
-
 	// Update the GCPMachinePoolMachine status.
-	s.scope.GCPMachinePoolMachine.Status.LatestModelApplied = latestModel
 	s.scope.SetReady()
 
 	return ctrl.Result{}, nil
@@ -102,7 +94,7 @@ func (s *Service) Delete(ctx context.Context) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
 	log.Info("Deleting Instance Group Instances")
 
-	if s.scope.GCPMachinePoolMachine.Status.ProvisioningState != v1beta1.Deleting {
+	if s.scope.GCPMachinePoolMachine.Status.ProvisioningState != v1beta1.Deprovisioning {
 		log.Info("Deleting instance", "instance", s.scope.Name())
 		// Cordon and drain the node before deleting the instance.
 		if err := s.scope.CordonAndDrainNode(ctx); err != nil {
@@ -119,7 +111,7 @@ func (s *Service) Delete(ctx context.Context) (ctrl.Result, error) {
 		}
 
 		// Update the GCPMachinePoolMachine status.
-		s.scope.GCPMachinePoolMachine.Status.ProvisioningState = v1beta1.Deleting
+		s.scope.GCPMachinePoolMachine.Status.ProvisioningState = v1beta1.Deprovisioning
 
 		// Wait for the instance to be deleted before proceeding.
 		return ctrl.Result{Requeue: true, RequeueAfter: 30 * time.Second}, nil
