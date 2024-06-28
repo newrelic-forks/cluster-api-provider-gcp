@@ -23,6 +23,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"google.golang.org/api/compute/v1"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/cluster-api-provider-gcp/cloud"
@@ -142,8 +144,7 @@ func (s *Service) Reconcile(ctx context.Context) (ctrl.Result, error) {
 		s.scope.SetMIGState(instanceGroup)
 		s.scope.SetMIGInstances(instanceGroupInstances.ManagedInstances)
 	} else {
-		err = fmt.Errorf("instance group or instance group list is nil")
-		return ctrl.Result{}, gcperrors.UnwrapGCPError(err)
+		return ctrl.Result{}, gcperrors.UnwrapGCPError(errors.New("instance group or instance group list is nil"))
 	}
 	return ctrl.Result{}, nil
 }
@@ -256,6 +257,7 @@ func (s *Service) removeOldInstanceTemplate(ctx context.Context, instanceTemplat
 	// Prepare to identify instance templates to remove.
 	lastIndex := strings.LastIndex(instanceTemplateName, "-")
 	if lastIndex == -1 {
+		//nolint
 		log.Error(fmt.Errorf("invalid instance template name format"), "Invalid template name", "templateName", instanceTemplateName)
 		return fmt.Errorf("invalid instance template name format: %s", instanceTemplateName)
 	}

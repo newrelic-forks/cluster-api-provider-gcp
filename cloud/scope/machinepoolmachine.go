@@ -302,8 +302,10 @@ func (m *MachinePoolMachineScope) ProviderID() string {
 }
 
 // HasLatestModelApplied checks if the latest model is applied to the GCPMachinePoolMachine.
-func (m *MachinePoolMachineScope) HasLatestModelApplied(_ context.Context, instance *compute.Disk) (bool, error) {
-	image := ""
+func (m *MachinePoolMachineScope) HasLatestModelApplied(ctx context.Context, instance *compute.Disk, labels map[string]string) (bool, error) {
+	log := log.FromContext(ctx)
+
+	var image string
 
 	if m.GCPMachinePool.Spec.Image == nil {
 		version := ""
@@ -318,16 +320,43 @@ func (m *MachinePoolMachineScope) HasLatestModelApplied(_ context.Context, insta
 	// Get the image from the disk URL path to compare with the latest image name
 	diskImage, err := url.Parse(instance.SourceImage)
 	if err != nil {
+		log.Error(err, "Error Parsing the Instance.SourceImage from the disk attached.")
 		return false, err
 	}
 	instanceImage := path.Base(diskImage.Path)
 
-	// Check if the image is the latest
-	if image == instanceImage {
+	// Check if the image is the latest and additionalLabels
+	hasAdditionalLabelsDiff := m.doesNotHaveAdditionalLabelsDiff(ctx, labels)
+	if image == instanceImage && hasAdditionalLabelsDiff {
+		log.Info("Instance Image and AdditionalLabels are same as the ones specified in GCPMachinePool Spec, setting LatestModelApplied to true", "GCPMachinePoolMachine", m.GCPMachinePoolMachine)
 		return true, nil
 	}
 
+	log.Info("One of either Instance Image and AdditionalLabels are not the same as the ones specified in GCPMachinePool Spec, setting LatestModelApplied to false", "GCPMachinePoolMachine", m.GCPMachinePoolMachine)
 	return false, nil
+}
+
+// doesNotHaveAdditionalLabelsDiff Checks if the Labels applied to the instance are the latest as in the Instance Template.
+// We would need to ignore the two labels
+// - `capg-role`
+// - `capg-cluster-<CLUSTER-NAME>`
+// as they are added by default by CAPG and when we compare it with AdditionalLabels in GCPMachinePool.Spec with the instance present.
+// ref: https://github.com/newrelic-forks/cluster-api-provider-gcp/blob/ef2e7f1e64ebeeb5389c446fe4cf89026fcb8a8a/cloud/services/compute/instances/reconcile_test.go#L244-L24
+func (m *MachinePoolMachineScope) doesNotHaveAdditionalLabelsDiff(ctx context.Context, labels map[string]string) bool {
+	diff := make(map[string]bool)
+	log := log.FromContext(ctx)
+	for _, k := range labels {
+		if _, ok := m.GCPMachinePool.Spec.AdditionalLabels[k]; !ok {
+			diff[k] = true
+		}
+	}
+	_, hasCapgRoleKey := diff["capg-role"]
+	_, hasCapgClusterKey := diff["capg-cluster-"+m.GCPMachinePool.ObjectMeta.Labels["cluster.x-k8s.io/cluster-name"]]
+	if hasCapgRoleKey && hasCapgClusterKey && len(diff) == 2 {
+		log.Info("There's no diff in AdditionalLabels which are present.", "GCPMachinePoolMachine", m.GCPMachinePoolMachine)
+		return false
+	}
+	return true
 }
 
 // CordonAndDrainNode cordon and drain the node for the GCPMachinePoolMachine.
@@ -423,7 +452,6 @@ func (m *MachinePoolMachineScope) drainNode(ctx context.Context, node *corev1.No
 		Name:      m.ClusterGetter.Name(),
 		Namespace: m.GCPMachinePoolMachine.Namespace,
 	})
-
 	if err != nil {
 		log.Error(err, "Error creating a remote client while deleting Machine, won't retry")
 		return nil

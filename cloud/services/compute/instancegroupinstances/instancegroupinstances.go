@@ -84,7 +84,7 @@ func (s *Service) Reconcile(ctx context.Context) (ctrl.Result, error) {
 	}
 
 	// Update hasLatestModelApplied status.
-	latestModel, err := s.scope.HasLatestModelApplied(ctx, disk)
+	latestModel, err := s.scope.HasLatestModelApplied(ctx, disk, instance.Labels)
 	if err != nil {
 		log.Error(err, "Failed to check if the latest model is applied")
 		return ctrl.Result{}, err

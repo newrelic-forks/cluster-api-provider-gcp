@@ -26,7 +26,6 @@ import (
 
 // Client wraps GCP SDK.
 type Client interface {
-
 	// Instance methods.
 	GetInstance(ctx context.Context, project, zone, name string) (*compute.Instance, error)
 	// InstanceGroupInstances methods.

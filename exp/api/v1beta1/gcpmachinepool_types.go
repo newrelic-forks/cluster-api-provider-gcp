@@ -87,7 +87,6 @@ type MetadataItem struct {
 
 // GCPMachinePoolSpec defines the desired state of GCPMachinePool and the GCP instances that it will create.
 type GCPMachinePoolSpec struct {
-
 	// AdditionalDisks are optional non-boot attached disks.
 	// +optional
 	AdditionalDisks []AttachedDiskSpec `json:"additionalDisks,omitempty"`
@@ -313,7 +312,6 @@ type MachineRollingUpdateDeployment struct {
 
 // GCPMachinePoolStatus defines the observed state of GCPMachinePool and the GCP instances that it manages.
 type GCPMachinePoolStatus struct {
-
 	// Ready is true when the provider resource is ready.
 	// +optional
 	Ready bool `json:"ready"`
@@ -396,6 +394,7 @@ func (r *GCPMachinePool) GetConditions() clusterv1.Conditions {
 func (r *GCPMachinePool) SetConditions(conditions clusterv1.Conditions) {
 	r.Status.Conditions = conditions
 }
+
 func init() {
 	infrav1.SchemeBuilder.Register(&GCPMachinePool{}, &GCPMachinePoolList{})
 }

@@ -137,7 +137,7 @@ func KubeadmConfigToInfrastructureMapFunc(_ context.Context, c client.Client, lo
 
 // GCPMachinePoolMachineMapper returns a handler.ToRequestsFunc that watches for GCPMachinePool events and returns.
 func GCPMachinePoolMachineMapper(scheme *runtime.Scheme, log logr.Logger) handler.MapFunc {
-	return func(ctx context.Context, o client.Object) []ctrl.Request {
+	return func(_ context.Context, o client.Object) []ctrl.Request {
 		gvk, err := apiutil.GVKForObject(new(infrav1exp.GCPMachinePool), scheme)
 		if err != nil {
 			log.Error(errors.WithStack(err), "failed to find GVK for GCPMachinePool")
@@ -204,8 +204,8 @@ func MachinePoolMachineHasStateOrVersionChange(logger logr.Logger) predicate.Fun
 			}
 			return shouldUpdate
 		},
-		CreateFunc:  func(e event.CreateEvent) bool { return false },
-		DeleteFunc:  func(e event.DeleteEvent) bool { return false },
-		GenericFunc: func(e event.GenericEvent) bool { return false },
+		CreateFunc:  func(_ event.CreateEvent) bool { return false },
+		DeleteFunc:  func(_ event.DeleteEvent) bool { return false },
+		GenericFunc: func(_ event.GenericEvent) bool { return false },
 	}
 }

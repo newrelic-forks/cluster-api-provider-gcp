@@ -42,7 +42,6 @@ type GCPMachinePoolMachineSpec struct {
 
 // GCPMachinePoolMachineStatus defines the observed state of GCPMachinePoolMachine and the GCP instances that it manages.
 type GCPMachinePoolMachineStatus struct {
-
 	// NodeRef will point to the corresponding Node if it exists.
 	// +optional
 	NodeRef *corev1.ObjectReference `json:"nodeRef,omitempty"`
@@ -144,6 +143,7 @@ func (r *GCPMachinePoolMachine) GetConditions() clusterv1.Conditions {
 func (r *GCPMachinePoolMachine) SetConditions(conditions clusterv1.Conditions) {
 	r.Status.Conditions = conditions
 }
+
 func init() {
 	infrav1.SchemeBuilder.Register(&GCPMachinePoolMachine{}, &GCPMachinePoolMachineList{})
 }
