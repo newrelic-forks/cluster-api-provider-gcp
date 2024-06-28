@@ -8,11 +8,10 @@ import (
 )
 
 var _ = Describe("Processors", func() {
-
-	var n2InstTypes = []string{"n2-slow-8", "n2-test-8"}
-	var n2dInstTypes = []string{"n2d-medium-4", "n2d-fast-23"}
-	var c2InstTypes = []string{"c2-medium-4", "c2-fast-23"}
-	var t2dInstTypes = []string{"t2d-medium-4", "t2d-fast-23"}
+	n2InstTypes := []string{"n2-slow-8", "n2-test-8"}
+	n2dInstTypes := []string{"n2d-medium-4", "n2d-fast-23"}
+	c2InstTypes := []string{"c2-medium-4", "c2-fast-23"}
+	t2dInstTypes := []string{"t2d-medium-4", "t2d-fast-23"}
 
 	Describe("Mapping Instance Types", func() {
 		Context("n2 instance types", func() {

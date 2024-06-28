@@ -456,7 +456,6 @@ func (m *MachinePoolMachineScope) drainNode(ctx context.Context, node *corev1.No
 		Name:      m.ClusterGetter.Name(),
 		Namespace: m.GCPMachinePoolMachine.Namespace,
 	})
-
 	if err != nil {
 		log.Error(err, "Error creating a remote client while deleting Machine, won't retry")
 		return nil

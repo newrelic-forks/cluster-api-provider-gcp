@@ -52,7 +52,6 @@ var _ = Describe("GCPManagedMachinePool Scope", func() {
 		// Make sure the machinepool scope is created correctly.
 		assert.Nil(t, err)
 		assert.NotNil(t, TestMachinePoolScope)
-
 	})
 
 	Describe("Min CPU Mappings", func() {
