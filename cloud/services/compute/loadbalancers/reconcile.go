@@ -190,7 +190,7 @@ func (s *Service) createExternalLoadBalancer(ctx context.Context, lbType infrav1
 	s.scope.Network().APIServerBackendService = ptr.To[string](backendsvc.SelfLink)
 
 	// Create TargetTCPProxy for Proxy Load Balancer
-	target, err := s.createOrGetTargetTCPProxy(ctx, backendsvc)
+	target, err := s.createOrGetTargetTCPProxy(ctx, backendsvc, string(infrav1.External))
 	if err != nil {
 		return err
 	}
@@ -229,6 +229,13 @@ func (s *Service) createInternalLoadBalancer(ctx context.Context, name string, l
 	}
 	s.scope.Network().APIInternalBackendService = ptr.To[string](backendsvc.SelfLink)
 
+	// Create TargetTCPProxy for Proxy Load Balancer
+	target, err := s.createOrGetTargetTCPProxy(ctx, backendsvc, string(infrav1.Internal))
+	if err != nil {
+		return err
+	}
+	s.scope.Network().APIServerTargetProxy = ptr.To[string](target.SelfLink)
+
 	// Create an address on internal subnet.
 	addr, err := s.createOrGetInternalAddress(ctx, name)
 	if err != nil {
@@ -243,7 +250,7 @@ func (s *Service) createInternalLoadBalancer(ctx context.Context, name string, l
 	}
 
 	// Create a regional forwarding rule to the backend service
-	forwarding, err := s.createOrGetRegionalForwardingRule(ctx, name, backendsvc, addr)
+	forwarding, err := s.createOrGetRegionalForwardingRule(ctx, name, target, addr)
 	if err != nil {
 		return err
 	}
@@ -459,11 +466,19 @@ func (s *Service) createOrGetRegionalBackendService(ctx context.Context, lbname 
 	return backendsvc, nil
 }
 
-func (s *Service) createOrGetTargetTCPProxy(ctx context.Context, service *compute.BackendService) (*compute.TargetTcpProxy, error) {
+func (s *Service) createOrGetTargetTCPProxy(ctx context.Context, service *compute.BackendService, lbtype string) (*compute.TargetTcpProxy, error) {
 	log := log.FromContext(ctx)
 	targetSpec := s.scope.TargetTCPProxySpec()
 	targetSpec.Service = service.SelfLink
-	key := meta.GlobalKey(targetSpec.Name)
+
+	var key *meta.Key
+	if lbtype == string(infrav1.Internal) {
+		targetSpec.Region = s.scope.Region()
+		key = meta.RegionalKey(targetSpec.Name, s.scope.Region())
+	} else {
+		key = meta.GlobalKey(targetSpec.Name)
+	}
+
 	target, err := s.targettcpproxies.Get(ctx, key)
 	if err != nil {
 		if !gcperrors.IsNotFound(err) {
@@ -583,12 +598,13 @@ func (s *Service) createOrGetForwardingRule(ctx context.Context, lbname string, 
 }
 
 // createOrGetRegionalForwardingRule is used to obtain a Regional ForwardingRule.
-func (s *Service) createOrGetRegionalForwardingRule(ctx context.Context, lbname string, backendSvc *compute.BackendService, addr *compute.Address) (*compute.ForwardingRule, error) {
+func (s *Service) createOrGetRegionalForwardingRule(ctx context.Context, lbname string, target *compute.TargetTcpProxy, addr *compute.Address) (*compute.ForwardingRule, error) {
 	log := log.FromContext(ctx)
 	spec := s.scope.ForwardingRuleSpec(lbname)
 	spec.LoadBalancingScheme = string(loadBalanceTrafficInternal)
 	spec.Region = s.scope.Region()
-	spec.BackendService = backendSvc.SelfLink
+	spec.Target = target.SelfLink
+	spec.IPAddress = addr.SelfLink
 	// Ports are used instead or PortRange for passthrough Load Balancer
 	// Configure ports for k8s API and ignition
 	spec.Ports = []string{"6443", "22623"}
