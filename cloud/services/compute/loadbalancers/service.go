@@ -76,6 +76,7 @@ type Scope interface {
 	BackendServiceSpec() *compute.BackendService
 	ForwardingRuleSpec() *compute.ForwardingRule
 	HealthCheckSpec() *compute.HealthCheck
+	IsLoadBalancerInternal() bool
 	InstanceGroupSpec(zone string) *compute.InstanceGroup
 	TargetTCPProxySpec() *compute.TargetTcpProxy
 	SubnetSpecs() []*compute.Subnetwork

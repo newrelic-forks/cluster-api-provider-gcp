@@ -306,22 +306,39 @@ func (s *ClusterScope) FirewallRulesSpec() []*compute.Firewall {
 
 // AddressSpec returns google compute address spec.
 func (s *ClusterScope) AddressSpec() *compute.Address {
-	return &compute.Address{
+	address := &compute.Address{
 		Name:        fmt.Sprintf("%s-%s", s.Name(), infrav1.APIServerRoleTagValue),
 		AddressType: "EXTERNAL",
 		IpVersion:   "IPV4",
 	}
+
+	// If the load balancer is internal, the address must be created in the same region as the cluster.
+	if s.IsLoadBalancerInternal() {
+		address.Region = s.Region()
+		address.AddressType = "INTERNAL"
+		address.Purpose = "GCE_ENDPOINT"
+	}
+
+	return address
 }
 
 // BackendServiceSpec returns google compute backend-service spec.
 func (s *ClusterScope) BackendServiceSpec() *compute.BackendService {
-	return &compute.BackendService{
+	backendService := &compute.BackendService{
 		Name:                fmt.Sprintf("%s-%s", s.Name(), infrav1.APIServerRoleTagValue),
 		LoadBalancingScheme: "EXTERNAL",
 		PortName:            "apiserver",
 		Protocol:            "TCP",
 		TimeoutSec:          int64((10 * time.Minute).Seconds()),
 	}
+
+	// If the load balancer is internal, the backend service must be created in the same region as the cluster.
+	if s.IsLoadBalancerInternal() {
+		backendService.Region = s.Region()
+		backendService.LoadBalancingScheme = "INTERNAL"
+	}
+
+	return backendService
 }
 
 // ForwardingRuleSpec returns google compute forwarding-rule spec.
@@ -331,17 +348,36 @@ func (s *ClusterScope) ForwardingRuleSpec() *compute.ForwardingRule {
 		port = ptr.Deref(c.APIServerPort, 443)
 	}
 	portRange := fmt.Sprintf("%d-%d", port, port)
-	return &compute.ForwardingRule{
+	forwardingRule := &compute.ForwardingRule{
 		Name:                fmt.Sprintf("%s-%s", s.Name(), infrav1.APIServerRoleTagValue),
 		IPProtocol:          "TCP",
 		LoadBalancingScheme: "EXTERNAL",
 		PortRange:           portRange,
 	}
+
+	// If the load balancer is internal, the forwarding rule must be created in the same region as the cluster.
+	if s.IsLoadBalancerInternal() {
+		forwardingRule.Region = s.Region()
+		forwardingRule.LoadBalancingScheme = "INTERNAL"
+		forwardingRule.PortRange = ""
+		forwardingRule.Ports = []string{"6443"}
+	}
+
+	return forwardingRule
+}
+
+// IsLoadBalancerInternal returns true if the load balancer is internal.
+func (s *ClusterScope) IsLoadBalancerInternal() bool {
+	lbType := string(*s.LoadBalancer().LoadBalancerType)
+	if lbType == string(infrav1.Internal) || lbType == string(infrav1.InternalExternal) {
+		return true
+	}
+	return false
 }
 
 // HealthCheckSpec returns google compute health-check spec.
 func (s *ClusterScope) HealthCheckSpec() *compute.HealthCheck {
-	return &compute.HealthCheck{
+	healthCheck := &compute.HealthCheck{
 		Name: fmt.Sprintf("%s-%s", s.Name(), infrav1.APIServerRoleTagValue),
 		Type: "HTTPS",
 		HttpsHealthCheck: &compute.HTTPSHealthCheck{
@@ -354,6 +390,13 @@ func (s *ClusterScope) HealthCheckSpec() *compute.HealthCheck {
 		HealthyThreshold:   5,
 		UnhealthyThreshold: 3,
 	}
+
+	// If the load balancer is internal, the health check must be created in the same region as the cluster.
+	if s.IsLoadBalancerInternal() {
+		healthCheck.Region = s.Region()
+	}
+
+	return healthCheck
 }
 
 // InstanceGroupSpec returns google compute instance-group spec.
@@ -373,10 +416,17 @@ func (s *ClusterScope) InstanceGroupSpec(zone string) *compute.InstanceGroup {
 
 // TargetTCPProxySpec returns google compute target-tcp-proxy spec.
 func (s *ClusterScope) TargetTCPProxySpec() *compute.TargetTcpProxy {
-	return &compute.TargetTcpProxy{
+	targetTcpProxy := &compute.TargetTcpProxy{
 		Name:        fmt.Sprintf("%s-%s", s.Name(), infrav1.APIServerRoleTagValue),
 		ProxyHeader: "NONE",
 	}
+
+	// If the load balancer is internal, the target tcp proxy must be created in the same region as the cluster.
+	if s.IsLoadBalancerInternal() {
+		targetTcpProxy.Region = s.Region()
+	}
+
+	return targetTcpProxy
 }
 
 // ANCHOR_END: ClusterControlPlaneSpec
