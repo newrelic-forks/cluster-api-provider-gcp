@@ -59,6 +59,10 @@ func (s *Service) Reconcile(ctx context.Context) (ctrl.Result, error) {
 	log := ctrl.LoggerFrom(ctx)
 	log.Info("Reconciling Instance Group Instances")
 
+	log.Info("wth", "project", s.scope.Project())
+	log.Info("wth", "zone", s.scope.Zone())
+	log.Info("wth", "name", s.scope.Name())
+
 	// Fetch the instance.
 	instance, err := s.GetInstance(ctx, s.scope.Project(), s.scope.Zone(), s.scope.Name())
 	if err != nil {
