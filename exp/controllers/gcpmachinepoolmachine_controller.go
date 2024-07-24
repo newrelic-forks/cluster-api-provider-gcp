@@ -31,7 +31,6 @@ import (
 	infrav1exp "sigs.k8s.io/cluster-api-provider-gcp/exp/api/v1beta1"
 	"sigs.k8s.io/cluster-api-provider-gcp/util/reconciler"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
-	expclusterv1 "sigs.k8s.io/cluster-api/exp/api/v1beta1"
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/annotations"
 	"sigs.k8s.io/cluster-api/util/predicates"
@@ -75,13 +74,18 @@ func (r *GCPMachinePoolMachineReconciler) SetupWithManager(ctx context.Context, 
 		WithOptions(options).
 		For(&infrav1exp.GCPMachinePoolMachine{}).
 		WithEventFilter(predicates.ResourceNotPausedAndHasFilterLabel(log, r.WatchFilterValue)).
-		Watches(
-			&expclusterv1.MachinePool{},
-			handler.EnqueueRequestsFromMapFunc(machinePoolToInfrastructureMapFunc(gvk)),
-		).
 		Build(r)
 	if err != nil {
 		return errors.Wrapf(err, "error creating controller")
+	}
+
+	// Watch for changes of GCPMachinePool instances and call Reconcile on owned GCPMachinePoolMachines.
+	if err := c.Watch(
+		source.Kind(mgr.GetCache(), &infrav1exp.GCPMachinePool{}),
+		handler.EnqueueRequestsFromMapFunc(GCPMachinePoolToGCPMachinePoolMachines(ctx, mgr.GetClient(), log)),
+		MachinePoolModelHasChanged(log),
+	); err != nil {
+		return errors.Wrap(err, "failed adding a watch for GCPMachinePool")
 	}
 
 	// Add a watch on clusterv1.Cluster object for unpause & ready notifications.
@@ -208,7 +212,7 @@ func (r *GCPMachinePoolMachineReconciler) reconcileNormal(ctx context.Context, m
 	}
 
 	reconcilers := []cloud.ReconcilerWithResult{
-		instancegroupinstances.New(machinePoolMachineScope),
+		instancegroupinstances.New(ctx, machinePoolMachineScope),
 	}
 
 	for _, r := range reconcilers {
@@ -239,7 +243,7 @@ func (r *GCPMachinePoolMachineReconciler) reconcileDelete(ctx context.Context, m
 	log.Info("Reconciling GCPMachinePoolMachine delete")
 
 	reconcilers := []cloud.ReconcilerWithResult{
-		instancegroupinstances.New(machinePoolMachineScope),
+		instancegroupinstances.New(ctx, machinePoolMachineScope),
 	}
 
 	for _, r := range reconcilers {

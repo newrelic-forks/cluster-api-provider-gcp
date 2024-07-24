@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"net/url"
-	"os"
 	"path"
 	"strings"
 	"time"
@@ -33,6 +32,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	kubedrain "k8s.io/kubectl/pkg/drain"
 	"k8s.io/utils/ptr"
+	infrav1 "sigs.k8s.io/cluster-api-provider-gcp/api/v1beta1"
 	"sigs.k8s.io/cluster-api-provider-gcp/cloud"
 	infrav1exp "sigs.k8s.io/cluster-api-provider-gcp/exp/api/v1beta1"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
@@ -268,17 +268,21 @@ func (m *MachinePoolMachineScope) GetNodeByProviderID(ctx context.Context, provi
 }
 
 // GetGCPClientCredentials returns the GCP client credentials.
-func (m *MachinePoolMachineScope) GetGCPClientCredentials() ([]byte, error) {
-	credsPath := os.Getenv(ConfigFileEnvVar)
-	if credsPath == "" {
-		return nil, fmt.Errorf("no ADC environment variable found for credentials (expect %s)", ConfigFileEnvVar)
+func (m *MachinePoolMachineScope) GetGCPClientCredentials(ctx context.Context, credentialsRef *infrav1.ObjectReference, crClient client.Client) ([]byte, error) {
+
+	var credentialData []byte
+	var err error
+
+	if credentialsRef != nil {
+		credentialData, err = getCredentialDataFromRef(ctx, credentialsRef, crClient)
+	} else {
+		credentialData, err = getCredentialDataUsingADC()
+	}
+	if err != nil {
+		return nil, fmt.Errorf("getting credential data: %w", err)
 	}
 
-	byteValue, err := os.ReadFile(credsPath) //nolint:gosec // We need to read a file here
-	if err != nil {
-		return nil, fmt.Errorf("reading credentials from file %s: %w", credsPath, err)
-	}
-	return byteValue, nil
+	return credentialData, nil
 }
 
 // Zone returns the zone for the GCPMachinePoolMachine.

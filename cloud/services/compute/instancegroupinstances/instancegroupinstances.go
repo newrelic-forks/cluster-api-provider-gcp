@@ -42,8 +42,8 @@ type (
 var _ cloud.ReconcilerWithResult = &Service{}
 
 // New creates a new instance group service.
-func New(scope *scope.MachinePoolMachineScope) *Service {
-	creds, err := scope.GetGCPClientCredentials()
+func New(ctx context.Context, scope *scope.MachinePoolMachineScope) *Service {
+	creds, err := scope.GetGCPClientCredentials(ctx, scope.ClusterGetter.GetCredentialsReference(), scope.Client)
 	if err != nil {
 		return nil
 	}

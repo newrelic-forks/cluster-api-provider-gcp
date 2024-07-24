@@ -188,8 +188,6 @@ func (m *MachinePoolScope) updateReplicasAndProviderIDs(ctx context.Context) err
 
 	m.GCPMachinePool.Status.Replicas = readyReplicas
 	m.GCPMachinePool.Spec.ProviderIDList = providerIDs
-	m.MachinePool.Spec.ProviderIDList = providerIDs
-	m.MachinePool.Status.Replicas = readyReplicas
 	return nil
 }
 

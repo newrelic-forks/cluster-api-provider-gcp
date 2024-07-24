@@ -18,6 +18,8 @@ package controllers
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 
 	"github.com/go-logr/logr"
@@ -26,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	infrav1exp "sigs.k8s.io/cluster-api-provider-gcp/exp/api/v1beta1"
 	"sigs.k8s.io/cluster-api-provider-gcp/util/reconciler"
+	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	kubeadmv1 "sigs.k8s.io/cluster-api/bootstrap/kubeadm/api/v1beta1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
@@ -175,6 +178,88 @@ func GCPMachinePoolMachineMapper(scheme *runtime.Scheme, log logr.Logger) handle
 		}
 
 		return nil
+	}
+}
+
+// GCPMachinePoolToGCPMachinePoolMachines maps an GCPMachinePool to its child GCPMachinePoolMachines through
+// Cluster and MachinePool labels.
+func GCPMachinePoolToGCPMachinePoolMachines(ctx context.Context, c client.Client, log logr.Logger) handler.MapFunc {
+	return func(ctx context.Context, o client.Object) []reconcile.Request {
+		ctx, cancel := context.WithTimeout(ctx, reconciler.DefaultMappingTimeout)
+		defer cancel()
+
+		amp, ok := o.(*infrav1exp.GCPMachinePool)
+		if !ok {
+			log.Error(errors.Errorf("expected a GCPMachinePool but got a %T", o), "failed to get GCPMachinePool")
+			return nil
+		}
+		logWithValues := log.WithValues("GCPMachinePool", amp.Name, "Namespace", amp.Namespace)
+
+		labels := map[string]string{
+			clusterv1.ClusterNameLabel:      amp.Labels[clusterv1.ClusterNameLabel],
+			infrav1exp.MachinePoolNameLabel: amp.Name,
+		}
+		ampml := &infrav1exp.GCPMachinePoolMachineList{}
+		if err := c.List(ctx, ampml, client.InNamespace(amp.Namespace), client.MatchingLabels(labels)); err != nil {
+			logWithValues.Error(err, "failed to list GCPMachinePoolMachines")
+			return nil
+		}
+
+		logWithValues.Info("mapping from GCPMachinePool", "count", len(ampml.Items))
+		var result []reconcile.Request
+		for _, m := range ampml.Items {
+			result = append(result, reconcile.Request{
+				NamespacedName: client.ObjectKey{
+					Namespace: m.Namespace,
+					Name:      m.Name,
+				},
+			})
+		}
+
+		return result
+	}
+}
+
+// MachinePoolModelHasChanged predicates any events based on changes to the GCPMachinePool model.
+func MachinePoolModelHasChanged(logger logr.Logger) predicate.Funcs {
+	return predicate.Funcs{
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			log := logger.WithValues("predicate", "MachinePoolModelHasChanged", "eventType", "update")
+
+			oldGmp, ok := e.ObjectOld.(*infrav1exp.GCPMachinePool)
+			if !ok {
+				log.V(4).Info("Expected GCPMachinePool", "type", e.ObjectOld.GetObjectKind().GroupVersionKind().String())
+				return false
+			}
+			log = log.WithValues("namespace", oldGmp.Namespace, "gcpMachinePool", oldGmp.Name)
+
+			newGmp := e.ObjectNew.(*infrav1exp.GCPMachinePool)
+
+			// If the spec has changed, we need to update the model
+			oldSpec, err := json.Marshal(oldGmp.Spec)
+			if err != nil {
+				log.Error(err, "failed to marshal old spec")
+				return false
+			}
+			oldHash := sha256.Sum256(oldSpec)
+
+			newSpec, err := json.Marshal(newGmp.Spec)
+			if err != nil {
+				log.Error(err, "failed to marshal new spec")
+				return false
+			}
+			newHash := sha256.Sum256(newSpec)
+
+			shouldUpdate := oldHash != newHash
+
+			if shouldUpdate {
+				log.Info("machine pool predicate", "shouldUpdate", shouldUpdate)
+			}
+			return shouldUpdate
+		},
+		CreateFunc:  func(e event.CreateEvent) bool { return false },
+		DeleteFunc:  func(e event.DeleteEvent) bool { return false },
+		GenericFunc: func(e event.GenericEvent) bool { return false },
 	}
 }
 
