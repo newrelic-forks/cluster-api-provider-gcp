@@ -30,14 +30,12 @@ import (
 	"sigs.k8s.io/cluster-api-provider-gcp/cloud/services/compute/instancegroupinstances"
 	infrav1exp "sigs.k8s.io/cluster-api-provider-gcp/exp/api/v1beta1"
 	"sigs.k8s.io/cluster-api-provider-gcp/util/reconciler"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/annotations"
 	"sigs.k8s.io/cluster-api/util/predicates"
 	"sigs.k8s.io/cluster-api/util/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -65,11 +63,6 @@ type GCPMachinePoolMachineReconciler struct {
 func (r *GCPMachinePoolMachineReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, options controller.Options) error {
 	log := log.FromContext(ctx).WithValues("controller", "GCPMachinePoolMachine")
 
-	gvk, err := apiutil.GVKForObject(new(infrav1exp.GCPMachinePoolMachine), mgr.GetScheme())
-	if err != nil {
-		return errors.Wrapf(err, "failed to find GVK for GCPMachinePool")
-	}
-
 	c, err := ctrl.NewControllerManagedBy(mgr).
 		WithOptions(options).
 		For(&infrav1exp.GCPMachinePoolMachine{}).
@@ -86,15 +79,6 @@ func (r *GCPMachinePoolMachineReconciler) SetupWithManager(ctx context.Context, 
 		MachinePoolModelHasChanged(log),
 	); err != nil {
 		return errors.Wrap(err, "failed adding a watch for GCPMachinePool")
-	}
-
-	// Add a watch on clusterv1.Cluster object for unpause & ready notifications.
-	if err := c.Watch(
-		source.Kind(mgr.GetCache(), &clusterv1.Cluster{}),
-		handler.EnqueueRequestsFromMapFunc(util.ClusterToInfrastructureMapFunc(ctx, gvk, mgr.GetClient(), &infrav1exp.GCPMachinePoolMachine{})),
-		predicates.ClusterUnpausedAndInfrastructureReady(log),
-	); err != nil {
-		return errors.Wrap(err, "failed adding a watch for ready clusters")
 	}
 
 	return nil

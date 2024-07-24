@@ -30,7 +30,6 @@ import (
 	"sigs.k8s.io/cluster-api-provider-gcp/cloud/services/compute/instancegroups"
 	infrav1exp "sigs.k8s.io/cluster-api-provider-gcp/exp/api/v1beta1"
 	"sigs.k8s.io/cluster-api-provider-gcp/util/reconciler"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	kubeadmv1 "sigs.k8s.io/cluster-api/bootstrap/kubeadm/api/v1beta1"
 	expclusterv1 "sigs.k8s.io/cluster-api/exp/api/v1beta1"
 	"sigs.k8s.io/cluster-api/util"
@@ -105,15 +104,6 @@ func (r *GCPMachinePoolReconciler) SetupWithManager(ctx context.Context, mgr ctr
 		predicates.ResourceNotPausedAndHasFilterLabel(log, r.WatchFilterValue),
 	); err != nil {
 		return errors.Wrap(err, "failed adding a watch for GCPMachinePoolMachine")
-	}
-
-	// Add a watch on clusterv1.Cluster object for unpause & ready notifications.
-	if err := c.Watch(
-		source.Kind(mgr.GetCache(), &clusterv1.Cluster{}),
-		handler.EnqueueRequestsFromMapFunc(util.ClusterToInfrastructureMapFunc(ctx, gvk, mgr.GetClient(), &infrav1exp.GCPMachinePool{})),
-		predicates.ClusterUnpausedAndInfrastructureReady(log),
-	); err != nil {
-		return errors.Wrap(err, "failed adding a watch for ready clusters")
 	}
 
 	return nil

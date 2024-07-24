@@ -18,8 +18,6 @@ package controllers
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/json"
 	"fmt"
 
 	"github.com/go-logr/logr"
@@ -235,22 +233,10 @@ func MachinePoolModelHasChanged(logger logr.Logger) predicate.Funcs {
 
 			newGmp := e.ObjectNew.(*infrav1exp.GCPMachinePool)
 
-			// If the spec has changed, we need to update the model
-			oldSpec, err := json.Marshal(oldGmp.Spec)
-			if err != nil {
-				log.Error(err, "failed to marshal old spec")
-				return false
-			}
-			oldHash := sha256.Sum256(oldSpec)
-
-			newSpec, err := json.Marshal(newGmp.Spec)
-			if err != nil {
-				log.Error(err, "failed to marshal new spec")
-				return false
-			}
-			newHash := sha256.Sum256(newSpec)
-
-			shouldUpdate := oldHash != newHash
+			// if any of these are not equal, run the update
+			shouldUpdate := oldGmp.Spec.Image != newGmp.Spec.Image ||
+				oldGmp.Status.Replicas != newGmp.Status.Replicas ||
+				oldGmp.Status.Ready != newGmp.Status.Ready
 
 			if shouldUpdate {
 				log.Info("machine pool predicate", "shouldUpdate", shouldUpdate)
