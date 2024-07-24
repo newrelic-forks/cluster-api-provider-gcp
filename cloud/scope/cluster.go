@@ -139,6 +139,11 @@ func (s *ClusterScope) ResourceManagerTags() infrav1.ResourceManagerTags {
 	return s.GCPCluster.Spec.ResourceManagerTags.DeepCopy()
 }
 
+// GetCredentialsReference returns the GCPCluster's credentials secret reference.
+func (s *ClusterScope) GetCredentialsReference() *infrav1.ObjectReference {
+	return s.GCPCluster.Spec.CredentialsRef
+}
+
 // ControlPlaneEndpoint returns the cluster control-plane endpoint.
 func (s *ClusterScope) ControlPlaneEndpoint() clusterv1.APIEndpoint {
 	endpoint := s.GCPCluster.Spec.ControlPlaneEndpoint

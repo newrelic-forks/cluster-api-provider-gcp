@@ -149,6 +149,11 @@ func (s *ManagedClusterScope) ControlPlaneEndpoint() clusterv1.APIEndpoint {
 	return endpoint
 }
 
+// GetCredentialsReference returns the GCPCluster's credentials secret reference.
+func (s *ManagedClusterScope) GetCredentialsReference() *infrav1.ObjectReference {
+	return s.GCPManagedCluster.Spec.CredentialsRef
+}
+
 // FailureDomains returns the cluster failure domains.
 func (s *ManagedClusterScope) FailureDomains() clusterv1.FailureDomains {
 	return s.GCPManagedCluster.Status.FailureDomains

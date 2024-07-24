@@ -229,7 +229,7 @@ func (r *GCPMachinePoolReconciler) reconcileNormal(ctx context.Context, machineP
 	}
 
 	reconcilers := []cloud.ReconcilerWithResult{
-		instancegroups.New(machinePoolScope),
+		instancegroups.New(ctx, machinePoolScope),
 	}
 
 	for _, r := range reconcilers {
@@ -268,7 +268,7 @@ func (r *GCPMachinePoolReconciler) reconcileDelete(ctx context.Context, machineP
 	log.Info("Reconciling GCPMachinePool delete")
 
 	reconcilers := []cloud.ReconcilerWithResult{
-		instancegroups.New(machinePoolScope),
+		instancegroups.New(ctx, machinePoolScope),
 	}
 
 	for _, r := range reconcilers {

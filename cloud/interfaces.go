@@ -57,6 +57,7 @@ type ClusterGetter interface {
 	Namespace() string
 	NetworkName() string
 	Network() *infrav1.Network
+	GetCredentialsReference() *infrav1.ObjectReference
 	AdditionalLabels() infrav1.Labels
 	FailureDomains() clusterv1.FailureDomains
 	ControlPlaneEndpoint() clusterv1.APIEndpoint

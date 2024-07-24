@@ -21,7 +21,6 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
-	"os"
 	"path"
 	"sort"
 	"strconv"
@@ -602,17 +601,21 @@ func (m *MachinePoolScope) Project() string {
 }
 
 // GetGCPClientCredentials returns the GCP client credentials.
-func (m *MachinePoolScope) GetGCPClientCredentials() ([]byte, error) {
-	credsPath := os.Getenv(ConfigFileEnvVar)
-	if credsPath == "" {
-		return nil, fmt.Errorf("no ADC environment variable found for credentials (expect %s)", ConfigFileEnvVar)
+func (m *MachinePoolScope) GetGCPClientCredentials(ctx context.Context, credentialsRef *infrav1.ObjectReference, crClient client.Client) ([]byte, error) {
+
+	var credentialData []byte
+	var err error
+
+	if credentialsRef != nil {
+		credentialData, err = getCredentialDataFromRef(ctx, credentialsRef, crClient)
+	} else {
+		credentialData, err = getCredentialDataUsingADC()
+	}
+	if err != nil {
+		return nil, fmt.Errorf("getting credential data: %w", err)
 	}
 
-	byteValue, err := os.ReadFile(credsPath) //nolint:gosec // We need to read a file here
-	if err != nil {
-		return nil, fmt.Errorf("reading credentials from file %s: %w", credsPath, err)
-	}
-	return byteValue, nil
+	return credentialData, nil
 }
 
 // GetBootstrapData returns the bootstrap data from the secret in the Machine's bootstrap.dataSecretName.
