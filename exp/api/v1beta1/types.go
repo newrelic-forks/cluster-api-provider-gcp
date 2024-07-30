@@ -37,21 +37,20 @@ type Taint struct {
 }
 
 // ProvisioningState describes the provisioning state of an GCP resource.
+// Ref - https://cloud.google.com/compute/docs/instances/instance-life-cycle
 type ProvisioningState string
 
 const (
-	// Creating ...
-	Creating ProvisioningState = "Creating"
-	// Deleting ...
-	Deleting ProvisioningState = "Deleting"
-	// Failed ...
-	Failed ProvisioningState = "Failed"
-	// Succeeded ...
+	// Provisioning - resources are allocated for the VM. The VM is not running yet
+	Provisioning ProvisioningState = "Provisioning"
+	// Deprovisioning - instance is halted. Tear down tasks like network deprogramming, releasing quota, IP, disks etc
+	Deprovisioning ProvisioningState = "Deprovisioning"
+	// Complete - resources are acquired, and the VM is preparing for first boot.
+	Complete ProvisioningState = "Complete"
+	// Succeeded - the VM is running or stopped or suspended
 	Succeeded ProvisioningState = "Succeeded"
-	// Updating ...
-	Updating ProvisioningState = "Updating"
-	// Deleted represents a deleted resource.
-	Deleted ProvisioningState = "Deleted"
+	// Failed - the VM encountered an error and will be deleted
+	Failed ProvisioningState = "Failed"
 )
 
 // Taints is an array of Taints.

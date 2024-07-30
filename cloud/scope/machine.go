@@ -425,13 +425,13 @@ func (m *MachineScope) InstanceSpec(log logr.Logger) *compute.Instance {
 			EnableVtpm:                true,
 			EnableIntegrityMonitoring: true,
 		}
-		if m.GCPMachine.Spec.ShieldedInstanceConfig.SecureBoot == infrav1.SecureBootPolicyEnabled {
+		if s := m.GCPMachine.Spec.ShieldedInstanceConfig.SecureBoot; s != nil && *s == infrav1.SecureBootPolicyEnabled {
 			instance.ShieldedInstanceConfig.EnableSecureBoot = true
 		}
-		if m.GCPMachine.Spec.ShieldedInstanceConfig.VirtualizedTrustedPlatformModule == infrav1.VirtualizedTrustedPlatformModulePolicyDisabled {
+		if v := m.GCPMachine.Spec.ShieldedInstanceConfig.VirtualizedTrustedPlatformModule; v != nil && *v == infrav1.VirtualizedTrustedPlatformModulePolicyDisabled {
 			instance.ShieldedInstanceConfig.EnableVtpm = false
 		}
-		if m.GCPMachine.Spec.ShieldedInstanceConfig.IntegrityMonitoring == infrav1.IntegrityMonitoringPolicyDisabled {
+		if i := m.GCPMachine.Spec.ShieldedInstanceConfig.IntegrityMonitoring; i != nil && *i == infrav1.IntegrityMonitoringPolicyDisabled {
 			instance.ShieldedInstanceConfig.EnableIntegrityMonitoring = false
 		}
 	}

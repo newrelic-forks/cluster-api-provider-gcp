@@ -107,14 +107,14 @@ type GCPShieldedInstanceConfig struct {
 	// If omitted, the platform chooses a default, which is subject to change over time, currently that default is Disabled.
 	// +kubebuilder:validation:Enum=Enabled;Disabled
 	//+optional
-	SecureBoot SecureBootPolicy `json:"secureBoot,omitempty"`
+	SecureBoot *SecureBootPolicy `json:"secureBoot,omitempty"`
 
 	// VirtualizedTrustedPlatformModule enable virtualized trusted platform module measurements to create a known good boot integrity policy baseline.
 	// The integrity policy baseline is used for comparison with measurements from subsequent VM boots to determine if anything has changed.
 	// If omitted, the platform chooses a default, which is subject to change over time, currently that default is Enabled.
 	// +kubebuilder:validation:Enum=Enabled;Disabled
 	// +optional
-	VirtualizedTrustedPlatformModule VirtualizedTrustedPlatformModulePolicy `json:"virtualizedTrustedPlatformModule,omitempty"`
+	VirtualizedTrustedPlatformModule *VirtualizedTrustedPlatformModulePolicy `json:"virtualizedTrustedPlatformModule,omitempty"`
 
 	// IntegrityMonitoring determines whether the instance should have integrity monitoring that verify the runtime boot integrity.
 	// Compares the most recent boot measurements to the integrity policy baseline and return
@@ -122,7 +122,7 @@ type GCPShieldedInstanceConfig struct {
 	// If omitted, the platform chooses a default, which is subject to change over time, currently that default is Enabled.
 	// +kubebuilder:validation:Enum=Enabled;Disabled
 	// +optional
-	IntegrityMonitoring IntegrityMonitoringPolicy `json:"integrityMonitoring,omitempty"`
+	IntegrityMonitoring *IntegrityMonitoringPolicy `json:"integrityMonitoring,omitempty"`
 }
 
 // ConfidentialComputePolicy represents the confidential compute configuration for the GCP machine.
